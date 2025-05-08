@@ -9,10 +9,18 @@ import numpy as np
 import joblib
 import math
 from sklearn.preprocessing import StandardScaler
+from fastapi.middleware.cors import CORSMiddleware
 
 import os
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 개발 시 전체 허용. 배포 시에는 ["http://localhost:5173"]로 제한 추천
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 템플릿 디렉토리 지정
 templates = Jinja2Templates(directory="app/templates")

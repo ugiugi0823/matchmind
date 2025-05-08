@@ -1,6 +1,6 @@
 dd
 data
 dd.txt
-app/__pycache__
-app/best_model.pkl
-app/scaler.pkl
+backend/app/__pycache__
+backend/app/best_model.pkl
+backend/app/scaler.pkl
