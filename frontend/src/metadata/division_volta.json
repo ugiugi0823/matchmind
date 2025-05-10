@@ -1,0 +1,54 @@
+[
+    {
+        "divisionId": 1100,
+        "divisionName": "월드 스타"
+    },
+    {
+        "divisionId": 2000,
+        "divisionName": "내셔널 스타1부"
+    },
+    {
+        "divisionId": 2100,
+        "divisionName": "내셔널 스타2부"
+    },
+    {
+        "divisionId": 2200,
+        "divisionName": "내셔널 스타3부"
+    },
+    {
+        "divisionId": 2300,
+        "divisionName": "라이징 스타1부"
+    },
+    {
+        "divisionId": 2400,
+        "divisionName": "라이징 스타2부"
+    },
+    {
+        "divisionId": 2500,
+        "divisionName": "라이징 스타3부"
+    },
+    {
+        "divisionId": 2600,
+        "divisionName": "슈퍼 루키 1부"
+    },
+    {
+        "divisionId": 2700,
+        "divisionName": "슈퍼 루키 2부"
+    },
+    {
+        "divisionId": 2800,
+        "divisionName": "슈퍼 루키 3부"
+    },
+    {
+        "divisionId": 2900,
+        "divisionName": "루키 1부"
+    },
+    {
+        "divisionId": 3000,
+        "divisionName": "루키 2부"
+    },
+    {
+        "divisionId": 3100,
+        "divisionName": "루키 3부"
+    }
+]

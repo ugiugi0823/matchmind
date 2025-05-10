@@ -24,12 +24,13 @@ a:hover {
 
 body {
   margin: 0;
+  background-color: #121212; /* 배경색 유지 */
   display: flex;
-  place-items: center;
-  min-width: 320px;
+  justify-content: center;    /* ✅ 수평 가운데 정렬 */
+  align-items: flex-start;    /* 필요시 상단 정렬 */
   min-height: 100vh;
+  font-family: sans-serif;
 }
-
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
