@@ -4,41 +4,35 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>🏟 MatchMind</h1>
-      <div style={styles.buttonContainer}>
-        <button style={styles.button} onClick={() => navigate('/shoot')}>
-          ⚽ 슛 예측 테스트
-        </button>
-        <button style={styles.button} onClick={() => navigate('/rankers')}>
-          📊 랭커 정보 조회
-        </button>
-      </div>
+    <div style={{ padding: 30, maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
+      <img
+      src="/assets/rankers_banner.jpg"
+      alt="랭커 배너"
+      style={{
+        width: '900px',
+        height: '300px', // 원하는 높이로 조정
+        objectFit: 'cover', // 중앙 잘라내기 방식
+        display: 'block',
+        margin: '0 auto 30px auto',
+        borderRadius: '8px',
+      }}
+      />
+      <h1>⚽ MatchMind</h1>
+      <p>랭커 선수 통계와 슈팅 예측 테스트를 해보세요!</p>
+
+      <button
+        onClick={() => navigate('/rankers')}
+        style={{ padding: '12px 24px', marginTop: 20, fontSize: 16 }}
+      >
+        📊 랭커 통계 보기
+      </button>
+
+      <button
+        onClick={() => navigate('/shoot')}
+        style={{ padding: '12px 24px', marginTop: 20, marginLeft: 10, fontSize: 16 }}
+      >
+        🎯 슈팅 예측 테스트
+      </button>
     </div>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    textAlign: 'center',
-    padding: '50px',
-  },
-  title: {
-    fontSize: '40px',
-    marginBottom: '40px',
-  },
-  buttonContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '30px',
-  },
-  button: {
-    padding: '20px 30px',
-    fontSize: '18px',
-    cursor: 'pointer',
-    borderRadius: '8px',
-    backgroundColor: '#0057ff',
-    color: 'white',
-    border: 'none',
-  },
-};

@@ -1,133 +1,110 @@
+// src/pages/ShootTest.tsx
 import { useState } from 'react';
-import { predictShoot } from '../api';
-import FieldSelector from '../components/FieldSelector';
-import rawSpidData from '../metadata/spid.json';
-import { SpidEntry } from '../types/metadata';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
-
-const spidData = [...(rawSpidData as SpidEntry[])].sort((a, b) =>
-  a.name.localeCompare(b.name, 'ko')
-);
+import FieldSelector from '../components/FieldSelector';
 
 export default function ShootTest() {
-  const [coords, setCoords] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
-  const [spid, setSpid] = useState<number>(spidData[0]?.id ?? 0);
-  const [grade, setGrade] = useState<number>(1);
-  const [level, setLevel] = useState<number>(1);
-  const [result, setResult] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [x, setX] = useState<number | null>(null);
+  const [y, setY] = useState<number | null>(null);
+  const [spId, setSpid] = useState<number | null>(null);
+  const [spGrade, setSpGrade] = useState(3);
+  const [spLevel, setSpLevel] = useState(5);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleSelect = (x: number, y: number) => {
-    setCoords({ x, y });
-    setResult(null);
-    setError(null);
-  };
-
   const handleSubmit = async () => {
-    if (coords.x === null || coords.y === null) {
-      setError('필드를 클릭해 좌표를 선택하세요.');
+    if (x === null || y === null || spId === null) {
+      alert('모든 필드를 입력해주세요');
       return;
     }
 
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
     try {
-      const res = await predictShoot({
-        x: coords.x,
-        y: coords.y,
-        spid,
-        grade,
-        level,
+      const res = await axios.post('/api/predict', {
+        x,
+        y,
+        spId,
+        spGrade,
+        spLevel,
       });
-      setResult(`확률: ${res.goal_proba}, 예측: ${res.goal_pred ? '성공' : '실패'}`);
-    } catch (err) {
+      setResult(res.data);
+      setError(null);
+    } catch (err: any) {
+      console.error('예측 실패:', err);
       setError('예측 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+      setResult(null);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2>⚽ 슛 예측 테스트</h2>
+    <div style={{ padding: 30, maxWidth: 600, margin: '0 auto' }}>
+      <h2>🎯 슈팅 예측 테스트</h2>
 
-      <FieldSelector onSelect={handleSelect} />
+      <FieldSelector
+        onSelect={(x, y) => {
+          console.log("🎯 선택된 위치:", x, y);
+          setX(x);
+          setY(y);
+        }}
+        onPlayerSelect={(id, name) => {
+          setSpid(id);
+          console.log('선수 선택됨:', id, name);
+        }}
+      />
 
-      <div style={styles.form}>
-        <div>
-          <label>선수명:&nbsp;</label>
-          <select value={spid} onChange={(e) => setSpid(Number(e.target.value))}>
-            {spidData.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+      <div style={{ marginBottom: 15 }}>
+        <p>선택된 위치: X = <strong>{x}</strong>, Y = <strong>{y}</strong></p>
+      </div>
+
+      <div style={{ marginBottom: 15 }}>
+        <label>
+          강화 등급 (spGrade):
+          <input
+            type="number"
+            value={spGrade}
+            onChange={(e) => setSpGrade(Number(e.target.value))}
+            min={1}
+            max={5}
+            style={{ marginLeft: 10, width: 50 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 15 }}>
+        <label>
+          선수 레벨 (spLevel):
+          <input
+            type="number"
+            value={spLevel}
+            onChange={(e) => setSpLevel(Number(e.target.value))}
+            min={1}
+            max={30}
+            style={{ marginLeft: 10, width: 50 }}
+          />
+        </label>
+      </div>
+
+      <button onClick={handleSubmit} style={{ padding: '8px 20px' }}>
+        예측 요청
+      </button>
+
+      {result && (
+        <div style={{ marginTop: 20 }}>
+          <h3>📈 예측 결과</h3>
+          <p>예상 골 확률: <strong>{(result.goal_proba * 100).toFixed(2)}%</strong></p>
+          <p>예측 결과: {result.goal_pred ? '골 가능성 있음' : '골 가능성 낮음'}</p>
         </div>
+      )}
 
-        <div>
-          <label>강화 등급:&nbsp;</label>
-          <select value={grade} onChange={(e) => setGrade(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-        </div>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <div>
-          <label>레벨:&nbsp;</label>
-          <select value={level} onChange={(e) => setLevel(Number(e.target.value))}>
-            {Array.from({ length: 30 }, (_, i) => i + 1).map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <p>좌표: {coords.x !== null ? `${coords.x}, ${coords.y}` : '선택 안 됨'}</p>
-        </div>
-
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? '예측 중...' : '예측하기'}
-        </button>
-
-        {result && <p style={styles.result}>✅ 예측 결과: {result}</p>}
-        {error && <p style={styles.error}>{error}</p>}
-
-        <div style={{ marginTop: 30 }}>
+      <div style={{ marginTop: 30, textAlign: 'center' }}>
         <button onClick={() => navigate('/')}>🏠 홈으로</button>
-        <button onClick={() => navigate(-1)} style={{ marginLeft: 10 }}>🔙 뒤로가기</button>
-        </div>
+        <button onClick={() => navigate(-1)} style={{ marginLeft: 10 }}>
+          🔙 뒤로가기
+        </button>
       </div>
     </div>
   );
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    padding: '40px',
-    textAlign: 'center',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  result: {
-    marginTop: '20px',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#007700',
-  },
-  error: {
-    marginTop: '20px',
-    color: 'red',
-  },
-};

@@ -1,65 +1,114 @@
 import { useState } from 'react';
+import axios from 'axios';
+import debounce from 'lodash.debounce';
 import { getRankerStats } from '../api';
-import rawSpidData from '../metadata/spid.json';
 import rawSppositionData from '../metadata/spposition.json';
 import matchtypeData from '../metadata/matchtype.json';
 import { SpidEntry, SppositionEntry } from '../types/metadata';
 import { useNavigate } from 'react-router-dom';
 
-const spidData = [...(rawSpidData as SpidEntry[])].sort((a, b) =>
-  a.name.localeCompare(b.name, 'ko')
-);
 const sppositionData = rawSppositionData as SppositionEntry[];
 
 interface PlayerInput {
-  id: number; // spid
-  po: number; // spposition
+  id: number | null;
+  po: number;
 }
 
 export default function Rankers() {
   const [matchtypeName, setMatchtypeName] = useState('공식 경기');
-//   const [players, setPlayers] = useState<PlayerInput[]>([{ id: spidData[0].id, po: sppositionData[0].spposition }]);
-// 손흥민 ID 찾기
-const son = spidData.find((p) => p.name.includes('손흥민'));
-
-// 초기 상태 설정 (손흥민 없으면 첫 번째 선수 fallback)
-const [players, setPlayers] = useState<PlayerInput[]>([
-  {
-    id: son?.id ?? spidData[0].id,
-    po: sppositionData[0].spposition,
-  },
-]);
+  const [players, setPlayers] = useState<PlayerInput[]>([
+    { id: null, po: sppositionData[0].spposition },
+  ]);
+  const [queries, setQueries] = useState<string[]>(['']);
+  const [searchResults, setSearchResults] = useState<SpidEntry[][]>([[]]);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const getMatchtypeCode = (name: string): number => {
-    return matchtypeData.find((m) => m.desc === name)?.matchtype ?? 52;
+  const fetchPlayers = debounce(async (index: number, q: string) => {
+    if (q.trim().length < 2) {
+      updateSearchResults(index, []);
+      return;
+    }
+
+    try {
+      const encodedQuery = encodeURIComponent(q);
+      const url = `/api/players?query=${encodedQuery}`;
+      console.log(`[요청 시작] index=${index}, query="${q}" → ${url}`);
+
+      const res = await axios.get(url);
+
+      console.log('[응답 성공] 선수 수:', res.data.length);
+      updateSearchResults(index, res.data);
+    } catch (err: any) {
+      console.error('[검색 실패]');
+      console.error('message:', err.message);
+      console.error('status:', err?.response?.status);
+      console.error('response.data:', err?.response?.data);
+      console.error('stack:', err.stack);
+      updateSearchResults(index, []);
+    }
+  }, 300);
+
+  const updateSearchResults = (index: number, results: SpidEntry[]) => {
+    setSearchResults((prev) => {
+      const updated = [...prev];
+      while (updated.length <= index) updated.push([]);
+      updated[index] = results;
+      return updated;
+    });
   };
 
-  const handlePlayerChange = (index: number, field: keyof PlayerInput, value: string) => {
+  const handleQueryChange = (index: number, value: string) => {
+    setQueries((prev) => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+    fetchPlayers(index, value);
+  };
+
+  const handlePlayerSelect = (index: number, player: SpidEntry) => {
+    setPlayers((prev) => {
+      const updated = [...prev];
+      updated[index].id = player.id;
+      return updated;
+    });
+    setQueries((prev) => {
+      const updated = [...prev];
+      updated[index] = player.name;
+      return updated;
+    });
+    updateSearchResults(index, []);
+  };
+
+  const addPlayer = () => {
+    setPlayers([...players, { id: null, po: sppositionData[0].spposition }]);
+    setQueries([...queries, '']);
+    setSearchResults([...searchResults, []]);
+  };
+
+  const removePlayer = (index: number) => {
+    setPlayers(players.filter((_, i) => i !== index));
+    setQueries(queries.filter((_, i) => i !== index));
+    setSearchResults(searchResults.filter((_, i) => i !== index));
+  };
+
+  const handlePositionChange = (index: number, value: string) => {
     const updated = [...players];
-    updated[index][field] = Number(value);
+    updated[index].po = Number(value);
     setPlayers(updated);
   };
-
-  const addPlayer = () =>
-    setPlayers([...players, { id: spidData[0].id, po: sppositionData[0].spposition }]);
-
-  const removePlayer = (index: number) =>
-    setPlayers(players.filter((_, i) => i !== index));
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
     try {
-      const matchtype = getMatchtypeCode(matchtypeName);
-      const result = await getRankerStats(matchtype, players);
-      const normalized = result.map((p: any) => ({
-        ...p,
-        spId: p.spid,
-      }));
+      const validPlayers = players.filter((p) => p.id !== null) as { id: number; po: number }[];
+      const matchtype = matchtypeData.find((m) => m.desc === matchtypeName)?.matchtype ?? 52;
+      const result = await getRankerStats(matchtype, validPlayers);
+      const normalized = result.map((p: any) => ({ ...p, spId: p.spid }));
       setData(normalized);
     } catch (e) {
       console.error('API 호출 실패:', e);
@@ -69,29 +118,12 @@ const [players, setPlayers] = useState<PlayerInput[]>([
     }
   };
 
-  const getPlayerName = (id: number) =>
-    spidData.find((p) => p.id === id)?.name ?? `ID ${id}`;
-
   const getPositionName = (code: number) =>
     sppositionData.find((p) => p.spposition === code)?.desc ?? `코드 ${code}`;
 
   return (
-        <div
-    style={{
-        padding: 30,
-        maxWidth: 960,
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-    }}>
-        <img
-            src="/assets/rankers_banner.jpg"
-            alt="랭커 분석 배너"
-            style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', marginBottom: '20px' }}
-            />
-
-      <h2>📊 TOP 10,000 랭커 유저가 사용한 선수의 20경기 평균 스탯을 조회</h2>
+    <div style={{ padding: 30, maxWidth: 960, margin: '0 auto' }}>
+      <h2 style={{ textAlign: 'center' }}>📊 랭커 유저의 평균 스탯 조회</h2>
 
       <div style={{ marginBottom: 20 }}>
         <label>
@@ -111,22 +143,17 @@ const [players, setPlayers] = useState<PlayerInput[]>([
       </div>
 
       {players.map((player, index) => (
-        <div key={index} style={{ marginBottom: 10 }}>
-          <select
-            value={player.id}
-            onChange={(e) => handlePlayerChange(index, 'id', e.target.value)}
-            style={{ marginRight: 10 }}
-          >
-            {spidData.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-
+        <div key={index} style={{ marginBottom: 25 }}>
+          <input
+            type="text"
+            placeholder="선수 이름 검색 (2자 이상)"
+            value={queries[index]}
+            onChange={(e) => handleQueryChange(index, e.target.value)}
+            style={{ padding: 8, width: 240, marginRight: 10 }}
+          />
           <select
             value={player.po}
-            onChange={(e) => handlePlayerChange(index, 'po', e.target.value)}
+            onChange={(e) => handlePositionChange(index, e.target.value)}
             style={{ marginRight: 10 }}
           >
             {sppositionData.map((p) => (
@@ -135,8 +162,40 @@ const [players, setPlayers] = useState<PlayerInput[]>([
               </option>
             ))}
           </select>
-
           <button onClick={() => removePlayer(index)}>삭제</button>
+
+          {queries[index].length >= 2 && (
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                marginTop: 5,
+                backgroundColor: '#000000',
+                border: '1px solid #ccc',
+                maxHeight: 120,
+                overflowY: 'auto',
+                width: 240,
+              }}
+            >
+              {Array.isArray(searchResults[index]) && searchResults[index].length > 0 ? (
+                searchResults[index].map((result) => (
+                  <li
+                    key={result.id}
+                    onClick={() => handlePlayerSelect(index, result)}
+                    style={{
+                      padding: 6,
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #eee',
+                    }}
+                  >
+                    {result.name}
+                  </li>
+                ))
+              ) : (
+                <li style={{ padding: 6, color: '#888' }}>검색 결과 없음</li>
+              )}
+            </ul>
+          )}
         </div>
       ))}
 
@@ -154,7 +213,7 @@ const [players, setPlayers] = useState<PlayerInput[]>([
         <table border={1} cellPadding={6} style={{ marginTop: 20, width: '100%' }}>
           <thead>
             <tr>
-              <th>선수명</th>
+              <th>선수 ID</th>
               <th>포지션</th>
               <th>경기 수</th>
               <th>슛</th>
@@ -171,7 +230,7 @@ const [players, setPlayers] = useState<PlayerInput[]>([
           <tbody>
             {data.map((p) => (
               <tr key={`${p.spid}-${p.spPosition}`}>
-                <td>{getPlayerName(p.spid)}</td>
+                <td>{p.spid}</td>
                 <td>{getPositionName(p.spPosition)}</td>
                 <td>{p.status.matchCount}</td>
                 <td>{p.status.shoot}</td>
@@ -192,10 +251,13 @@ const [players, setPlayers] = useState<PlayerInput[]>([
           </tbody>
         </table>
       )}
-      <div style={{ marginTop: 30 }}>
+
+      <div style={{ marginTop: 30, textAlign: 'center' }}>
         <button onClick={() => navigate('/')}>🏠 홈으로</button>
-        <button onClick={() => navigate(-1)} style={{ marginLeft: 10 }}>🔙 뒤로가기</button>
-        </div>
+        <button onClick={() => navigate(-1)} style={{ marginLeft: 10 }}>
+          🔙 뒤로가기
+        </button>
+      </div>
     </div>
   );
 }
